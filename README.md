@@ -2,7 +2,7 @@
 ## Step 1:
 Instal WCF template
 ## Step 2:
-Create WCF Service Library project (As Adminator)
+Create WCF Application project (As Adminator)
 ## Step 3:
 Add Nuget Package:
 EntityFrameWork
@@ -124,7 +124,125 @@ Create "Repository" folder and "UserRepository" class.
 ```
 
 ## Step 7
-Create "IUserService" interface and "UserService" class
+Create "UserService" service
 
 IUserService
 ```bash
+[ServiceContract]
+public interface IUserService
+{
+    [OperationContract]
+    [WebGet(UriTemplate = "User", ResponseFormat = WebMessageFormat.Json)]
+    List<User> GetUsers();
+
+    [OperationContract]
+    [WebGet(UriTemplate = "User/{Id}", ResponseFormat = WebMessageFormat.Json)]
+    User GetUserById(string Id);
+
+    [OperationContract]
+    [WebInvoke(UriTemplate = "User/Add", Method = "POST", RequestFormat = WebMessageFormat.Json)]
+    void Add(User user);
+
+    [OperationContract]
+    [WebInvoke(UriTemplate = "User/Edit", Method = "PUT", RequestFormat = WebMessageFormat.Json)]
+    void Edit(User user);
+
+    [OperationContract]
+    [WebInvoke(UriTemplate = "User/Delete/{Id}", Method = "DELETE")]
+    void Delete(string Id);
+}
+```
+UserService
+```bash
+public class UserService : IUserService
+{
+    UserRepository repository = new UserRepository();
+
+    public void Add(User user)
+    {
+        repository.AddUser(user);
+    }
+
+    public void Delete(string Id)
+    {
+        if (int.TryParse(Id, out int userId))
+        {
+            repository.Delete(userId);
+        }
+        else
+        {
+            throw new ArgumentException("Invalid user ID format.");
+        }
+    }
+
+    public void Edit(User user)
+    {
+        repository.Update(user);
+    }
+
+    public User GetUserById(string Id)
+    {
+        if (int.TryParse(Id, out int userId))
+        {
+            return repository.GetUserById(userId);
+        }
+        else
+        {
+            throw new ArgumentException("Invalid user ID format.");
+        }
+
+    }
+
+    public List<User> GetUsers()
+    {
+        return repository.GetAll();
+    }
+}
+```
+
+## Step 8
+Change the the Web.config content
+```bash
+<system.serviceModel>
+	<services>
+		<service name="Demo_WCF2.UserService">
+			<!-- Service Endpoints -->
+			<!-- Unless fully qualified, address is relative to base address supplied above -->
+			<endpoint address="" behaviorConfiguration="restbehaviour" binding="webHttpBinding" contract="Demo_WCF2.IUserService">
+				<!-- 
+          Upon deployment, the following identity element should be removed or replaced to reflect the 
+          identity under which the deployed service runs.  If removed, WCF will infer an appropriate identity 
+          automatically.
+      -->
+			</endpoint>
+			<!-- Metadata Endpoints -->
+			<!-- The Metadata Exchange endpoint is used by the service to describe itself to clients. -->
+			<!-- This endpoint does not use a secure binding and should be secured or removed before deployment -->
+			<endpoint address="mex" binding="mexHttpBinding" contract="IMetadataExchange" />
+		</service>
+	</services>
+	<behaviors>
+		<endpointBehaviors>
+			<behavior name="restbehaviour">
+				<webHttp />
+			</behavior>
+		</endpointBehaviors>
+		<serviceBehaviors>
+			<behavior>
+				<!-- To avoid disclosing metadata information, 
+      set the values below to false before deployment -->
+				<serviceMetadata httpGetEnabled="true" httpsGetEnabled="true" />
+				<!-- To receive exception details in faults for debugging purposes, 
+      set the value below to true.  Set to false before deployment 
+      to avoid disclosing exception information -->
+				<serviceDebug includeExceptionDetailInFaults="true" />
+			</behavior>
+		</serviceBehaviors>
+	</behaviors>
+	<protocolMapping>
+		<add scheme="https" binding="basicHttpBinding" />
+	</protocolMapping>
+	<serviceHostingEnvironment aspNetCompatibilityEnabled="false" multipleSiteBindingsEnabled="true">
+	</serviceHostingEnvironment>
+</system.serviceModel>
+```
